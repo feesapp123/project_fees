@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "110266884949",
+    "project_id": "projectfees-555ea",
+    "storage_bucket": "projectfees-555ea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:110266884949:android:05f27a8ca1f308d88885dc",
+        "android_client_info": {
+          "package_name": "com.ourcompany.projectfees"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCd4uoumODuPMfz_CeZ1xaBxQ-47wkW4jU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
