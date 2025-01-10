@@ -102,121 +102,195 @@ class _EditStudentDetailsScreenState extends State<EditStudentDetailsScreen> {
       appBar: AppBar(title: const Text("Edit Student Details")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _emisController,
-                    decoration: const InputDecoration(labelText: 'EMIS No'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter EMIS No';
-                      }
-                      return null;
-                    },
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        _buildTextField(
+                          controller: _emisController,
+                          label: 'EMIS No',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter EMIS No';
+                            }
+                            return null;
+                          },
+                        ),
+                        _buildTextField(
+                          controller: _nameController,
+                          label: 'Name',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter name';
+                            }
+                            return null;
+                          },
+                        ),
+                        _buildTextField(
+                          controller: _classController,
+                          label: 'Class',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter class';
+                            }
+                            return null;
+                          },
+                        ),
+                        _buildTextField(
+                          controller: _fatherNameController,
+                          label: 'Father\'s Name',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter father\'s name';
+                            }
+                            return null;
+                          },
+                        ),
+                        _buildTextField(
+                          controller: _phoneController,
+                          label: 'Phone Number',
+                          keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter phone number';
+                            }
+                            return null;
+                          },
+                        ),
+                        _buildDateField(
+                          controller: _dobController,
+                          label: 'Date of Birth',
+                        ),
+                        _buildTextField(
+                          controller: _casteController,
+                          label: 'Caste',
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter caste';
+                            }
+                            return null;
+                          },
+                        ),
+                        SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _submitForm,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 20),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            backgroundColor: Colors.blueAccent,
+                          ),
+                          child: _isSubmitting
+                              ? CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'Submit',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Name'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter name';
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: _classController,
-                    decoration: const InputDecoration(labelText: 'Class'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter class';
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: _fatherNameController,
-                    decoration:
-                        const InputDecoration(labelText: 'Father\'s Name'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter father\'s name';
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration:
-                        const InputDecoration(labelText: 'Phone Number'),
-                    keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter phone number';
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: _dobController,
-                    decoration:
-                        const InputDecoration(labelText: 'Date of Birth'),
-                    keyboardType: TextInputType.datetime,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter date of birth';
-                      }
-
-                      // Optionally, validate the format (DD/MM/YYYY)
-                      RegExp regExp = RegExp(r'^\d{2}/\d{2}/\d{4}$');
-                      if (!regExp.hasMatch(value)) {
-                        return 'Please enter a valid date in DD/MM/YYYY format';
-                      }
-
-                      return null;
-                    },
-                    onTap: () {
-                      FocusScope.of(context)
-                          .requestFocus(FocusNode()); // Remove keyboard on tap
-                      _selectDate(context); // Show date picker on tap
-                    },
-                  ),
-                  TextFormField(
-                    controller: _casteController,
-                    decoration: const InputDecoration(labelText: 'Caste'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter caste';
-                      }
-                      return null;
-                    },
-                  ),
-                  ElevatedButton(
-                    onPressed: _submitForm,
-                    child: _isSubmitting
-                        ? const CircularProgressIndicator()
-                        : const Text('Submit'),
-                  ),
-                ],
-              ),
-            ),
-            if (_statusMessage.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  _statusMessage,
-                  style: TextStyle(
-                      color: _statusMessage.contains("exists")
-                          ? Colors.red
-                          : Colors.green),
                 ),
               ),
-          ],
+              if (_statusMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _statusMessage.contains("exists")
+                          ? Colors.red.shade200
+                          : Colors.green.shade200,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _statusMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _statusMessage.contains("exists")
+                            ? Colors.red
+                            : Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? Function(String?)? validator,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade200,
+        ),
+        validator: validator,
+        keyboardType: keyboardType,
+      ),
+    );
+  }
+
+  Widget _buildDateField({
+    required TextEditingController controller,
+    required String label,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          filled: true,
+          fillColor: Colors.grey.shade200,
+          suffixIcon: Icon(Icons.calendar_today),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please enter date of birth';
+          }
+          RegExp regExp = RegExp(r'^\d{2}/\d{2}/\d{4}$');
+          if (!regExp.hasMatch(value)) {
+            return 'Please enter a valid date in DD/MM/YYYY format';
+          }
+          return null;
+        },
+        onTap: () {
+          FocusScope.of(context)
+              .requestFocus(FocusNode()); // Remove keyboard on tap
+          _selectDate(context); // Show date picker on tap
+        },
       ),
     );
   }

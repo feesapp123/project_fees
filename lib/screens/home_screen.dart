@@ -2,178 +2,292 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import 'admin_dashboard.dart'; // Import Admin Dashboard UI
-import 'user_dashboard.dart'; // Import User Dashboard UI
+// Import modularized widgets
+import 'SearchWidget.dart';
+import 'widgets/ClassDetailsDialog.dart';
+import 'widgets/ClassesListWidget.dart';
+import 'widgets/StudentsListWidget.dart';
+import 'widgets/ProfileAvatarWidget.dart';
+import 'StudentProfileScreen.dart';
+import 'admin_dashboard.dart'; // Import Admin Dashboard for admin access
 
 class HomeScreen extends StatefulWidget {
-  final String email; // Accept email in the constructor
+  final String email;
   final String role;
-  const HomeScreen(
-      {super.key,
-      required this.email,
-      required this.role}); // Ensure the email is passed when initializing
+
+  const HomeScreen({super.key, required this.email, required this.role});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  HomeScreenState createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final List<String> classes = [
-    '6A',
-    '6B',
-    '7A',
-    '7B',
-    '8A',
-    '8B',
-    '9A',
-    '9B',
-    '10'
-  ];
+class HomeScreenState extends State<HomeScreen> {
+  List<String> classes = [];
+  List<Map<String, dynamic>> students = [];
+  String searchQuery = '';
+  bool isSearchingClasses = true;
+  List<dynamic> searchResults = [];
+  bool isLoading = true;
+  final double classFees = 0; // To store the fetched class fees
 
-  Map<String, String>? user; // User data fetched from the database
-  bool isLoading = true; // To handle loading state
-  String errorMessage = ""; // To display errors
-
+  @override
   @override
   void initState() {
     super.initState();
-    _fetchUserData(widget.email); // Use the email passed to the HomeScreen
+    // Automatically navigate to AdminDashboard if the role is admin
+    if (widget.role == 'admin') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdminDashboard(
+                email: widget.email,
+                role: widget.role,
+              ),
+            ),
+          );
+        }
+      });
+    } else {
+      _fetchClasses(); // Fetch classes for non-admin users
+      fetchStudents(); // Fetch students for non-admin users
+    }
   }
 
-  Future<void> _fetchUserData(String email) async {
+  // Fetch the list of classes from PHP backend
+  Future<void> _fetchClasses() async {
+    try {
+      final response =
+          await http.get(Uri.parse('http://localhost/fees/fetch_classes.php'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          classes = List<String>.from(data);
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        throw Exception('Failed to fetch classes');
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      debugPrint('Error fetching classes: $e');
+    }
+  }
+
+  // Fetch the list of students by class name from the PHP backend
+  Future<void> _fetchStudentsByClass(String className) async {
+    try {
+      final response = await http.get(Uri.parse(
+          'http://localhost/fees/fetch_student.php?className=$className'));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        setState(() {
+          students =
+              List<Map<String, dynamic>>.from(data); // Update students list
+        });
+      } else {
+        throw Exception('Failed to fetch students for this class');
+      }
+    } catch (e) {
+      debugPrint('Error fetching students for class $className: $e');
+    }
+  }
+
+  // Fetch the list of students from PHP backend
+  // Fetch the list of students from PHP backend
+  // Fetch the list of students from PHP backend
+  Future<void> fetchStudents() async {
+    try {
+      final response = await http.get(Uri.parse(
+          "http://localhost/fees/fetch_students.php?search=$searchQuery"));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint(
+            'Raw response: $data'); // This prints the whole decoded response
+
+        // Check if 'data' exists and is a list
+        if (data != null && data['data'] != null && data['data'] is List) {
+          setState(() {
+            students = List<Map<String, dynamic>>.from(data['data']);
+          });
+        } else {
+          debugPrint("No valid 'data' or 'students' found in response.");
+          setState(() {
+            students = []; // Empty list in case of invalid response
+          });
+        }
+      } else {
+        debugPrint("Error: ${response.statusCode}");
+        setState(() {
+          students = []; // Empty list if the status code isn't 200
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching students: $e");
+      setState(() {
+        students = []; // Empty list in case of error
+      });
+    }
+  }
+
+  // Fetch class fee details for a specific class from PHP backend
+  Future<Map<String, dynamic>> _fetchClassFees(String className) async {
     try {
       final response = await http.post(
         Uri.parse(
-            'http://localhost/fees/fetch_user.php'), // Use the correct URL for your environment
-        body: {'email': email},
+            'http://localhost/fees/get_fees.php'), // Assuming this PHP endpoint provides fee details
+        body: {'class': className},
       );
 
-      debugPrint("Response Status: ${response.statusCode}");
-      debugPrint("Response Body: ${response.body}");
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint('Fetched Class Fees: $data');
+        return Map<String, dynamic>.from(data[0]);
 
-      if (mounted) {
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-
-          if (data['error'] != null) {
-            setState(() {
-              errorMessage = data['error'];
-              isLoading = false;
-            });
-          } else {
-            setState(() {
-              user = {
-                'name': data['UserName'],
-                'email': data['email'],
-                'role': data['role'],
-              };
-              isLoading = false;
-            });
-          }
-        } else {
-          setState(() {
-            errorMessage = "Server error: ${response.statusCode}";
-            isLoading = false;
-          });
-        }
+// Assuming one result for the class
+      } else {
+        throw Exception('Failed to fetch class fees');
       }
     } catch (e) {
-      if (mounted) {
-        debugPrint("Error details: $e"); // Add this for detailed error logging
-        setState(() {
-          errorMessage = "Failed to connect to the server: $e";
-          isLoading = false;
-        });
-      }
+      debugPrint('Error fetching class fees: $e');
+      return {}; // Return an empty map in case of error
     }
+  }
+
+  // Search logic to filter students and classes
+  void _search(String query) {
+    setState(() {
+      searchQuery = query;
+      if (isSearchingClasses) {
+        searchResults = classes
+            .where((classItem) =>
+                classItem.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      } else {
+        fetchStudents();
+        searchResults = students
+            .where((student) => student['StudentName']
+                .toLowerCase()
+                .contains(query.toLowerCase()))
+            .toList();
+      }
+    });
+  }
+
+  // Toggle between searching classes and students
+  void _toggleSearchType() {
+    setState(() {
+      isSearchingClasses = !isSearchingClasses;
+      searchResults.clear();
+    });
+  }
+
+  void _showStudentProfile(BuildContext context, Map<String, dynamic> student) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => StudentProfileScreen(
+          student: student, // Pass the selected student
+        ),
+      ),
+    );
+  }
+
+  // Show class details dialog with fees
+  // Show class details dialog with fees
+  void _showClassDetails(BuildContext context, String className) {
+    _fetchClassFees(className).then((classFeeData) {
+      // Fetch students for this class
+      _fetchStudentsByClass(className).then((_) {
+        List<Map<String, dynamic>> studentsInClass =
+            students.where((student) => student['Class'] == className).toList();
+
+        debugPrint('Class Name: $className');
+        debugPrint('Class Fee Data: $classFeeData');
+        debugPrint('Students in Class: ${studentsInClass.length}');
+
+        showDialog(
+          context: context,
+          builder: (context) {
+            return ClassDetailsDialog(
+              className: className,
+              studentsInClass: studentsInClass,
+              searchQuery: searchQuery,
+              onStudentTapped: (student) {
+                showDialog(
+                  context: context,
+                  builder: (context) => StudentProfileScreen(student: student),
+                );
+              },
+            );
+          },
+        );
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (errorMessage.isNotEmpty) {
-      return Scaffold(
-        body: Center(child: Text(errorMessage)),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Fees Management Dashboard"),
+        title: const Text(" FEES MANAGEMENT APPLICATION Dashboard"),
+        backgroundColor: Colors.deepPurpleAccent,
         actions: [
-          IconButton(
-            icon: const CircleAvatar(
-              backgroundImage: AssetImage('assets/profile.png'),
-              radius: 30,
-            ),
-            onPressed: _showProfileDialog,
-          ),
+          ProfileAvatarWidget(),
         ],
       ),
-      body: _getRoleBasedDashboard(),
-    );
-  }
-
-  Widget _getRoleBasedDashboard() {
-    if (user == null) {
-      return const Center(child: Text("User data not loaded."));
-    }
-
-    final role = user?['role'] ?? 'user'; // Default to 'user' if 'role' is null
-    switch (role) {
-      case 'admin':
-        return AdminDashboard(classes: classes); // Pass the required classes
-      case 'user':
-        return UserDashboard(
-          name: user?['name'] ?? 'Unknown',
-          email: user?['email'] ?? 'Unknown',
-          classes: classes,
-        ); // Pass the user data and classes
-      default:
-        return const Center(
-          child: Text(
-            "Invalid user role!",
-            style: TextStyle(color: Colors.red, fontSize: 18),
+      body: Column(
+        children: [
+          // Search bar and toggle
+          SearchWidget(
+            onSearch: _search,
+            isSearchingClasses: isSearchingClasses,
+            onToggleSearchType: _toggleSearchType,
           ),
-        );
-    }
-  }
-
-  void _showProfileDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Profile"),
-        content: Row(
-          children: [
-            const CircleAvatar(
-              backgroundImage: AssetImage('assets/profile.png'),
-              radius: 40,
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(user?['name'] ?? 'No Name'),
-                Text(user?['email'] ?? 'No Email'),
-                Text(user?['role'] ?? 'No Role'),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text("Close"),
-          ),
+          // Display Classes or Students Based on Search Results
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    children: [
+                      if (isSearchingClasses)
+                        ClassesListWidget(
+                          classes: searchResults.isEmpty
+                              ? List<String>.from(classes)
+                              : List<String>.from(searchResults),
+                          onClassTapped: (className) => _showClassDetails(
+                              context, className), // Pass function reference
+                        ),
+                      if (!isSearchingClasses)
+                        StudentsListWidget(
+                          students: searchResults.isEmpty
+                              ? List<Map<String, dynamic>>.from(students)
+                              : List<Map<String, dynamic>>.from(searchResults),
+                          onStudentTapped: (student) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => Dialog(
+                                child: StudentProfileScreen(
+                                  student:
+                                      student, // Pass the student to the profile screen
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+          )
         ],
       ),
     );
