@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:project_fees/screens/promotestudent_screen.dart';
 import 'dart:convert';
 
 // Import modularized widgets
@@ -13,6 +14,8 @@ import 'manage_users_screen.dart';
 import 'mark_payment_screen.dart';
 import 'set_fees_screen.dart';
 import 'edit_student_details_screen.dart';
+import 'upload_file_screen.dart';
+import 'addclass_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String email;
@@ -221,6 +224,15 @@ class AdminDashboardState extends State<AdminDashboard> {
               child: Text('Admin Menu', style: TextStyle(color: Colors.white)),
             ),
             ListTile(
+              title: const Text('Files Upload'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => UploadFileScreen()),
+                );
+              },
+            ),
+            ListTile(
               title: const Text('Edit Students'),
               onTap: () {
                 Navigator.push(
@@ -231,11 +243,30 @@ class AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
+              title: const Text('Promote Students'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => PromoteStudentScreen()),
+                );
+              },
+            ),
+            ListTile(
               title: const Text('Mark Payments'),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => MarkPaymentScreen()),
+                );
+              },
+            ),
+            ListTile(
+              title: const Text('Add Class'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AddClassScreen()),
                 );
               },
             ),

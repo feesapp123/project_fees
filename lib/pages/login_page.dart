@@ -15,6 +15,7 @@ class LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+
   Future<void> _saveUserEmail(String email) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('userEmail', email);
@@ -30,9 +31,6 @@ class LoginPageState extends State<LoginPage> {
       String email = _emailController.text.trim();
       String password = _passwordController.text.trim();
 
-      // Ensure that the email or phone is always treated as a string
-      email = email.toString(); // This ensures it is treated as a String
-
       try {
         var uri = Uri.parse('http://localhost/fees/login.php');
         final response = await http.post(
@@ -46,19 +44,20 @@ class LoginPageState extends State<LoginPage> {
 
           if (responseData['status'] == 'success') {
             String userRole = responseData['role'] ?? 'user';
-
-            // Save email or phone as the unique identifier
             await _saveUserEmail(email);
 
-            // Navigating to the next page after successful login
             if (mounted) {
+              // Direct navigation to appropriate dashboard
+              final String route =
+                  userRole == 'admin' ? '/admin_dashboard' : '/user_dashboard';
+
               Navigator.pushReplacementNamed(
                 context,
-                '/dashboard',
+                route,
                 arguments: {
                   'email': email,
                   'role': userRole,
-                }
+                },
               );
             }
           } else {
@@ -83,9 +82,11 @@ class LoginPageState extends State<LoginPage> {
           );
         }
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -109,9 +110,8 @@ class LoginPageState extends State<LoginPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
                     children: [
-                      // Animated Fade-In for the Title
                       AnimatedDefaultTextStyle(
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.deepPurpleAccent,
@@ -120,8 +120,6 @@ class LoginPageState extends State<LoginPage> {
                         child: const Text("Login"),
                       ),
                       const SizedBox(height: 40),
-
-                      // Email or Phone Input with Icon
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 500),
                         child: TextFormField(
@@ -137,8 +135,8 @@ class LoginPageState extends State<LoginPage> {
                                 color: Colors.deepPurple),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                                  BorderSide(color: Colors.deepPurpleAccent),
+                              borderSide: const BorderSide(
+                                  color: Colors.deepPurpleAccent),
                             ),
                           ),
                           keyboardType: TextInputType.emailAddress,
@@ -151,8 +149,6 @@ class LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      // Password Input with Icon
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 500),
                         child: TextFormField(
@@ -168,8 +164,8 @@ class LoginPageState extends State<LoginPage> {
                                 color: Colors.deepPurple),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                                  BorderSide(color: Colors.deepPurpleAccent),
+                              borderSide: const BorderSide(
+                                  color: Colors.deepPurpleAccent),
                             ),
                           ),
                           obscureText: true,
@@ -179,16 +175,11 @@ class LoginPageState extends State<LoginPage> {
                             } else if (value.length < 6) {
                               return "Password must be at least 6 characters long";
                             }
-                            debugPrint("Email/Phone: ${_emailController.text}");
-                            debugPrint("Password: ${_passwordController.text}");
-
                             return null;
                           },
                         ),
                       ),
                       const SizedBox(height: 30),
-
-                      // Login Button with animation
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 500),
                         curve: Curves.easeInOut,
@@ -220,8 +211,6 @@ class LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
-                      // Add New User Link
                       const SizedBox(height: 20),
                       Align(
                         alignment: Alignment.center,

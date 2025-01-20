@@ -1,25 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:logger/logger.dart'; // Import the logger package
-import 'package:project_fees/screens/home_screen.dart';
+import 'package:logger/logger.dart';
 import 'pages/login_page.dart';
-import 'pages/register_page.dart'; // Make sure RegisterPage is correctly imported
-import 'screens/set_fees_screen.dart'; // Import SetFeesScreen (ensure it's defined)
-import 'screens/edit_student_details_screen.dart'; // Import EditStudentDetailsScreen
-import 'screens/manage_users_screen.dart'; // Import ManageUsersScreen
+import 'screens/admin_dashboard.dart';
+import 'screens/user_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Create a logger instance
   final logger = Logger();
-
   try {
-    // Application-specific initialization logic can go here if needed
+    // Application-specific initialization logic
   } catch (e) {
-    // Replace print with logger for better logging
     logger.e("Error during initialization: $e");
   }
-
   runApp(const MyApp());
 }
 
@@ -31,25 +23,32 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Fees Management System',
-      initialRoute: '/', // Ensure '/' is set as the starting route
+      initialRoute: '/',
       routes: {
         '/': (context) => const LoginPage(),
-        '/register': (context) => const RegisterPage(),
-        '/SetFeesScreen': (context) => const SetFeesScreen(),
-        '/editstudent': (context) => const EditStudentDetailsScreen(),
-        '/manage-users': (context) => const ManageUsersScreen(),
+        '/admin_dashboard': (context) =>
+            const AdminDashboard(email: '', role: ''),
+        '/user_dashboard': (context) =>
+            const UserDashboard(email: '', role: ''),
       },
       onGenerateRoute: (settings) {
-        if (settings.name == '/dashboard') {
-          final Map<String, String> arguments =
-              settings.arguments as Map<String, String>;
-
-          final String email = arguments['email']!;
-          final String role = arguments['role'] ??
-              'user'; // Default to 'user' if role is missing
-
+        // Handle navigation with arguments
+        if (settings.name == '/admin_dashboard') {
+          final args = settings.arguments as Map<String, dynamic>;
           return MaterialPageRoute(
-            builder: (context) => HomeScreen(email: email, role: role),
+            builder: (context) => AdminDashboard(
+              email: args['email'] ?? '',
+              role: args['role'] ?? 'admin',
+            ),
+          );
+        }
+        if (settings.name == '/user_dashboard') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+            builder: (context) => UserDashboard(
+              email: args['email'] ?? '',
+              role: args['role'] ?? 'user',
+            ),
           );
         }
         return null;

@@ -44,7 +44,72 @@ class _EditStudentDetailsScreenState extends State<EditStudentDetailsScreen> {
     }
   }
 
-  // Function to handle form submission
+  // Function to check if student exists and load the details
+  // Function to check if student exists and load the details
+  Future<void> _loadStudentDetails() async {
+    final emisNo = _emisController.text;
+
+    if (emisNo.isEmpty) {
+      setState(() {
+        _statusMessage = "Please enter the EMIS number.";
+      });
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _statusMessage = "";
+    });
+
+    // Make the HTTP POST request to the PHP backend to check student
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'http://localhost/fees/check_student.php'), // Replace with your PHP URL
+        body: {'emis': emisNo},
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200 && responseData['status'] == 'success') {
+        // If student exists, populate the fields with existing data
+        final studentDetails = responseData['studentDetails'];
+        _nameController.text = studentDetails['StudentName'];
+        _classController.text = studentDetails['Class'];
+        _fatherNameController.text = studentDetails['FathersName'];
+        _phoneController.text = studentDetails['PhoneNumber'];
+        _dobController.text =
+            studentDetails['DOB']; // Make sure this is in DD/MM/YYYY format
+        _casteController.text = studentDetails['Caste'];
+
+        setState(() {
+          _statusMessage = "Student found! You can now update the details.";
+        });
+      } else {
+        // If student is not found, clear the text fields
+        _nameController.clear();
+        _classController.clear();
+        _fatherNameController.clear();
+        _phoneController.clear();
+        _dobController.clear();
+        _casteController.clear();
+
+        setState(() {
+          _statusMessage = "Student not found.";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = "Error: $e";
+      });
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+
+  // Function to handle form submission (update details)
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -66,25 +131,18 @@ class _EditStudentDetailsScreenState extends State<EditStudentDetailsScreen> {
       'caste': _casteController.text,
     };
 
-    // Make the HTTP POST request to the PHP backend
+    // Make the HTTP POST request to update student details
     try {
       final response = await http.post(
         Uri.parse(
-            'http://localhost/fees/update_student.php'), // Replace with your server URL
+            'http://localhost/fees/update_student.php'), // Replace with your PHP URL
         body: formData,
       );
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        setState(() {
-          _statusMessage = responseData['message'];
-        });
-      } else {
-        setState(() {
-          _statusMessage = "Failed to update student details.";
-        });
-      }
+      final responseData = json.decode(response.body);
+
+      setState(() {
+        _statusMessage = responseData['message'];
+      });
     } catch (e) {
       setState(() {
         _statusMessage = "Error: $e";
@@ -125,6 +183,10 @@ class _EditStudentDetailsScreenState extends State<EditStudentDetailsScreen> {
                             }
                             return null;
                           },
+                        ),
+                        ElevatedButton(
+                          onPressed: _loadStudentDetails,
+                          child: const Text('Load Student Details'),
                         ),
                         _buildTextField(
                           controller: _nameController,

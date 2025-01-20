@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'payment_history_dialog.dart';
 
 class MarkPaymentScreen extends StatefulWidget {
   const MarkPaymentScreen({super.key});
@@ -139,6 +140,14 @@ class _MarkPaymentScreenState extends State<MarkPaymentScreen> {
   Future<void> _savePayment(String studentName, double amountPaid,
       String status, String paymentDate) async {
     try {
+      debugPrint(json.encode({
+        'studentName': studentName,
+        'class': selectedClass,
+        'amountPaid': amountPaid,
+        'status': status,
+        'paymentDate': paymentDate,
+      }));
+
       final response = await http
           .post(
             Uri.parse("http://localhost/fees/save_payment.php"),
@@ -295,128 +304,246 @@ class _MarkPaymentScreenState extends State<MarkPaymentScreen> {
     );
   }
 
+  // ... (previous state variables remain the same)
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mark Payment'),
-        backgroundColor: Colors.deepPurpleAccent,
+        title: const Text('Fee Management'),
+        backgroundColor: Colors.deepPurple,
+        elevation: 0,
       ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedClass,
-                  hint: const Text('Select Class'),
-                  items: classes.map((className) {
-                    return DropdownMenuItem<String>(
-                      value: className,
-                      child: Text(className),
-                    );
-                  }).toList(),
-                  onChanged: (className) {
-                    setState(() {
-                      selectedClass = className;
-                      students = [];
-                    });
-                    if (className != null) {
-                      fetchStudents(className);
-                      fetchTotalFee(className);
-                    }
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Class',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: students.isEmpty
-                      ? Center(
-                          child: Text(
-                            selectedClass == null
-                                ? 'Please select a class'
-                                : 'No students found',
-                            style: TextStyle(color: Colors.grey[600]),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.deepPurple.withOpacity(0.1), Colors.white],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  // Class Selection Card
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Select Class',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
-                      : ListView.builder(
-                          itemCount: students.length,
-                          itemBuilder: (context, index) {
-                            final student = students[index];
-                            final studentName =
-                                student['StudentName'] ?? 'Unknown';
-                            final fathersName =
-                                student['FathersName'] ?? 'Not Available';
-                            final paymentStatus =
-                                student['PaymentStatus'] ?? 'N/A';
-                            final amountPaid = student['AmountPaid'] ?? 0.0;
-                            final remaining = totalFee - amountPaid;
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: selectedClass,
+                            hint: const Text('Choose a class'),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            items: classes.map((className) {
+                              return DropdownMenuItem<String>(
+                                value: className,
+                                child: Text(className),
+                              );
+                            }).toList(),
+                            onChanged: (className) {
+                              setState(() {
+                                selectedClass = className;
+                                students = [];
+                              });
+                              if (className != null) {
+                                fetchStudents(className);
+                                fetchTotalFee(className);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              child: ListTile(
-                                title: Text(
-                                  studentName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                  // Students List
+                  Expanded(
+                    child: students.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  selectedClass == null
+                                      ? Icons.class_
+                                      : Icons.people_outline,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  selectedClass == null
+                                      ? 'Please select a class'
+                                      : 'No students found',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
                                     fontSize: 16,
                                   ),
                                 ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Father: $fathersName'),
-                                    Text(
-                                      'Remaining: ₹${remaining.toStringAsFixed(2)}',
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: students.length,
+                            itemBuilder: (context, index) {
+                              final student = students[index];
+                              final amountPaid = student['AmountPaid'] ?? 0.0;
+                              final remaining = totalFee - amountPaid;
+
+                              return Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                  horizontal: 2,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(16),
+                                  leading: CircleAvatar(
+                                    backgroundColor: _getStatusColor(
+                                      student['PaymentStatus'] ?? 'N/A',
+                                    ),
+                                    child: Text(
+                                      student['StudentName'][0].toUpperCase(),
                                       style: TextStyle(
-                                        color: remaining > 0
-                                            ? Colors.red
-                                            : Colors.green,
+                                        color: _getStatusColor(
+                                          student['PaymentStatus'] ?? 'N/A',
+                                        ).withOpacity(0.8),
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                  title: Text(
+                                    student['StudentName'] ?? 'Unknown',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Father: ${student['FathersName'] ?? 'Not Available'}',
+                                        style:
+                                            TextStyle(color: Colors.grey[600]),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            remaining > 0
+                                                ? Icons.warning
+                                                : Icons.check_circle,
+                                            size: 16,
+                                            color: remaining > 0
+                                                ? Colors.orange
+                                                : Colors.green,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Remaining: ₹${remaining.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              color: remaining > 0
+                                                  ? Colors.orange
+                                                  : Colors.green,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.history),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) =>
+                                                PaymentHistoryDialog(
+                                              studentID: student['StudentID'],
+                                            ),
+                                          );
+                                        },
+                                        tooltip: 'Payment History',
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.payment),
+                                        onPressed: () => _showPaymentDialog(
+                                            context, student),
+                                        tooltip: 'Make Payment',
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                trailing: Chip(
-                                  label: Text(paymentStatus),
-                                  backgroundColor:
-                                      _getStatusColor(paymentStatus),
-                                ),
-                                onTap: () =>
-                                    _showPaymentDialog(context, student),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-          if (isLoading)
-            Container(
-              color: Colors.black45,
-              child: const Center(
-                child: CircularProgressIndicator(),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               ),
             ),
-        ],
+            if (isLoading)
+              Container(
+                color: Colors.black45,
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
+  // Updated color function
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'paid':
-        return Colors.green[100]!;
+        return Colors.green;
       case 'partially paid':
-        return Colors.orange[100]!;
+        return Colors.orange;
       case 'unpaid':
-        return Colors.red[100]!;
+        return Colors.red;
       default:
-        return Colors.grey[100]!;
+        return Colors.grey;
     }
   }
 }

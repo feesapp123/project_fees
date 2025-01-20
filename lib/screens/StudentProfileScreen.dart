@@ -28,23 +28,18 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
         ),
       );
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body)[0];
+        final responseData = json.decode(response.body);
+        debugPrint('API Response: $responseData'); // Log API response
 
-        // Check if 'TotalFee' is an integer or string and parse it accordingly
         setState(() {
-          if (responseData['TotalFee'] is int) {
-            totalFee = (responseData['TotalFee'] as int).toDouble();
-          } else if (responseData['TotalFee'] is String) {
-            totalFee = double.tryParse(responseData['TotalFee']) ?? 0.0;
-          } else {
-            totalFee = 0.0;
-          }
+          final data = responseData[0];
+          totalFee = double.tryParse(data['TotalFee'].toString()) ?? 0.0;
         });
       } else {
-        debugPrint('Failed to fetch total fee: ${response.body}');
+        debugPrint('Failed to fetch data: ${response.body}');
       }
     } catch (e) {
-      debugPrint('Error fetching total fee: $e');
+      debugPrint('Error fetching data: $e');
     }
   }
 
@@ -60,11 +55,13 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     final dob = student['DOB'] ?? 'Not Available';
     final caste = student['Caste'] ?? 'Not Available';
     final emisNo = student['EMISNo'] ?? 'Not Available';
-    final feesPaid =
+    final amountpaid =
         double.tryParse(student['AmountPaid']?.toString() ?? '0') ?? 0.0;
-
-    final remainingAmount = totalFee - feesPaid;
-
+    final paymentstatus = student['PaymentStatus'] ?? 'Not Available';
+    final arrearamount =
+        double.tryParse(student['Arrearamount']?.toString() ?? '0') ?? 0.0;
+    final remainingAmount = totalFee - amountpaid + arrearamount;
+    debugPrint(amountpaid.toString());
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -131,18 +128,29 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                     ),
                     SizedBox(height: 16),
                     _buildDetailRow(
-                        'Fees Paid:', '₹${feesPaid.toStringAsFixed(2)}'),
+                      'Total Fees:',
+                      '₹${totalFee.toStringAsFixed(2)}',
+                    ),
+                    _buildDetailRow(
+                      'Fees Paid:',
+                      '₹${amountpaid.toStringAsFixed(2)}',
+                    ),
+                    _buildDetailRow(
+                      'Arrear Fees:',
+                      '₹${arrearamount.toStringAsFixed(2)}',
+                    ),
                     _buildDetailRow(
                       'Payment Status:',
-                      student['PaymentStatus'] == 'Paid' ? 'Paid' : 'Pending',
-                      valueColor: student['PaymentStatus'] == 'Paid'
+                      (paymentstatus) ?? 'Not Available',
+                      valueColor: (paymentstatus ?? '').toLowerCase() == 'paid'
                           ? Colors.green
                           : Colors.red,
                     ),
-                    if (student['PaymentStatus'] != 'Paid')
+                    if ((widget.student['PaymentStatus'] ?? '').toLowerCase() !=
+                        'paid')
                       _buildDetailRow(
                         'Remaining Amount:',
-                        '₹${remainingAmount > 0 ? remainingAmount.toStringAsFixed(2) : "0.00"}',
+                        '₹${remainingAmount.toStringAsFixed(2)}',
                         valueColor: Colors.red,
                       ),
                   ],

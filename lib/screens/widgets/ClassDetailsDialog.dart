@@ -2,11 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:data_table_2/data_table_2.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:open_file/open_file.dart';
-import 'dart:io';
+import 'package:project_fees/screens/StudentProfileScreen.dart';
+import 'package:project_fees/screens/pdf_generation.dart';
 
 class ClassDetailsDialog extends StatefulWidget {
   final String className;
@@ -32,6 +29,9 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
   double totalFees = 0.0;
   double scholarshipAmount = 0.0;
   String feePeriod = '';
+  double totalCollected = 0.0;
+  double remainingAmount = 0.0;
+  double remaining = 0.0;
   String selectedStatus = 'All';
   bool isLoading = false;
 
@@ -46,6 +46,45 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
   void initState() {
     super.initState();
     fetchClassDetails(widget.searchQuery);
+  }
+
+  void applyStatusFilter() async {
+    setState(() => isLoading = true);
+
+    try {
+      final studentResponse = await http.get(Uri.parse(
+          "http://localhost/fees/filter_status.php?className=${widget.className}&status=${selectedStatus != 'All' ? selectedStatus : ''}"));
+
+      if (studentResponse.statusCode == 200) {
+        final data = json.decode(studentResponse.body);
+        if (data != null && data['data'] != null) {
+          setState(() {
+            filteredStudents = List<Map<String, dynamic>>.from(data['data']);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error applying status filter: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void calculateTotalCollectedAndRemaining() {
+    double totalAmountToBeCollected = 0.0;
+    double totalAmountPaid = 0.0;
+
+    // Calculate totals for all students in the class (not filtered)
+    for (var student in widget.studentsInClass) {
+      totalAmountToBeCollected += totalFees; // Total fees per student
+      totalAmountPaid +=
+          double.tryParse(student['AmountPaid']?.toString() ?? '0') ?? 0.0;
+    }
+
+    // Update the totals
+    totalCollected = totalAmountPaid;
+    remainingAmount =
+        totalAmountToBeCollected - totalCollected - scholarshipAmount;
   }
 
   Future<void> fetchClassDetails(String searchQuery) async {
@@ -72,7 +111,7 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
 
       // Fetch students with search query and status filter
       final studentResponse = await http.get(Uri.parse(
-          "http://localhost/fees/filter_status.php?className=${widget.className}&search=$searchQuery&status=${selectedStatus != 'All' ? selectedStatus : ''}"));
+          "http://localhost/fees/fetch_students.php?className=${widget.className}"));
 
       if (studentResponse.statusCode == 200) {
         final data = json.decode(studentResponse.body);
@@ -80,6 +119,7 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
           setState(() {
             filteredStudents = List<Map<String, dynamic>>.from(data['data']);
           });
+          calculateTotalCollectedAndRemaining();
         }
       }
     } catch (e) {
@@ -89,72 +129,27 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
     }
   }
 
-  Future<void> generateAndDownloadPDF() async {
-    final pdf = pw.Document();
-
-    // Add title and class information
-    pdf.addPage(
-      pw.Page(
-        build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('Class: ${widget.className}',
-                  style: pw.TextStyle(
-                      fontSize: 20, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 10),
-              pw.Text('Total Fees: ₹${totalFees.toStringAsFixed(2)}'),
-              pw.Text(
-                  'Scholarship Amount: ₹${scholarshipAmount.toStringAsFixed(2)}'),
-              pw.Text('Fee Period: $feePeriod'),
-              pw.SizedBox(height: 20),
-              // Create table
-              // ignore: deprecated_member_use
-              pw.Table.fromTextArray(
-                headers: [
-                  'Name',
-                  'Emis Number',
-                  'Status',
-                  'Amount Paid',
-                  'Remaining'
-                ],
-                data: filteredStudents.map((student) {
-                  final amountPaid = double.tryParse(
-                          student['AmountPaid']?.toString() ?? '0') ??
-                      0.0;
-                  final remaining = totalFees - amountPaid;
-                  return [
-                    student['StudentName'] ?? 'N/A',
-                    student['EMISNo'] ?? 'N/A',
-                    student['PaymentStatus'] ?? 'N/A',
-                    '₹${amountPaid.toStringAsFixed(2)}',
-                    '₹${remaining.toStringAsFixed(2)}'
-                  ];
-                }).toList(),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    // Save the PDF
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/Class_${widget.className}_Report.pdf');
-    await file.writeAsBytes(await pdf.save());
-
-    // Open the PDF
-    await OpenFile.open(file.path);
-  }
+// In your ClassDetailsDialog
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.8,
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(16.0),
+        width: MediaQuery.of(context).size.width * 0.85,
+        height: MediaQuery.of(context).size.height * 0.85,
+        padding: const EdgeInsets.all(24.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 10,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -198,10 +193,45 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Total Fees',
+                          Text('Fee structure : ₹$totalFees',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      const Color.fromARGB(255, 85, 227, 61))),
+                          Text('Fee Period: $feePeriod',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue)),
+                          SizedBox(height: 8),
+                          Text('Total Students: ${filteredStudents.length}',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      const Color.fromARGB(255, 239, 190, 67))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total Fees to be Collected',
                               style: TextStyle(color: Colors.grey)),
                           Text(
-                            '₹${totalFees.toStringAsFixed(2)}',
+                            '₹${(totalFees * filteredStudents.length).toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -220,10 +250,10 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Scholarship',
+                          Text('Total Fees Collected',
                               style: TextStyle(color: Colors.grey)),
                           Text(
-                            '₹${scholarshipAmount.toStringAsFixed(2)}',
+                            '₹${totalCollected.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -242,13 +272,14 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Students',
+                          Text('Remaining Amount',
                               style: TextStyle(color: Colors.grey)),
                           Text(
-                            '${filteredStudents.length}',
+                            '₹${remainingAmount.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: Colors.red,
                             ),
                           ),
                         ],
@@ -276,7 +307,7 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
                     }).toList(),
                     onChanged: (value) {
                       setState(() => selectedStatus = value!);
-                      fetchClassDetails(widget.searchQuery);
+                      applyStatusFilter(); // Apply filter after selection
                     },
                   ),
                 ),
@@ -295,46 +326,65 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
                         DataColumn2(
                             label: Text('Amount Paid'), size: ColumnSize.M),
                         DataColumn2(
+                            label: Text('Arrear Amount'), size: ColumnSize.M),
+                        DataColumn2(
                             label: Text('Remaining'), size: ColumnSize.M),
                       ],
                       rows: filteredStudents.map((student) {
                         final amountPaid = double.tryParse(
                                 student['AmountPaid']?.toString() ?? '0') ??
                             0.0;
-                        final remaining = totalFees - amountPaid;
+                        final remaining = double.tryParse(
+                                student['RemainingAmount']?.toString() ??
+                                    '0') ??
+                            0.0;
+                        final arrear = double.tryParse(
+                                student['Arrearamount']?.toString() ?? '0') ??
+                            0.0;
+                        //debugPrint('Arrear amount:$arrear');
+                        String paymentStatus;
+                        if (amountPaid >= totalFees) {
+                          paymentStatus = 'Paid';
+                        } else if (amountPaid > 0) {
+                          paymentStatus = 'Partially Paid';
+                        } else {
+                          paymentStatus = 'Unpaid';
+                        }
                         return DataRow(
                           cells: [
-                            DataCell(Text(student['StudentName'] ?? 'N/A')),
-                            DataCell(Text(student['EMISNo'] ?? 'N/A')),
+                            DataCell(
+                              Text(student['StudentName'] ?? 'N/A'),
+                              onTap: () => _navigateToStudentProfile(student),
+                            ),
+                            DataCell(
+                              Text(student['EMISNo'] ?? 'N/A'),
+                              onTap: () => _navigateToStudentProfile(student),
+                            ),
                             DataCell(
                               Container(
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: _getStatusColor(
-                                      student['PaymentStatus'] ?? 'N/A'),
+                                  color: _getStatusColor(paymentStatus),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Text(student['PaymentStatus'] ?? 'N/A'),
+                                child: Text(paymentStatus),
                               ),
+                              onTap: () => _navigateToStudentProfile(student),
                             ),
-                            DataCell(Text('₹${amountPaid.toStringAsFixed(2)}')),
                             DataCell(
-                              Text(
-                                '₹${remaining.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color:
-                                      remaining > 0 ? Colors.red : Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                              Text('₹${amountPaid.toStringAsFixed(2)}'),
+                              onTap: () => _navigateToStudentProfile(student),
+                            ),
+                            DataCell(
+                              Text('₹${arrear.toStringAsFixed(2)}'),
+                              onTap: () => _navigateToStudentProfile(student),
+                            ),
+                            DataCell(
+                              Text('₹${remaining.toStringAsFixed(2)}'),
+                              onTap: () => _navigateToStudentProfile(student),
                             ),
                           ],
-                          onSelectChanged: (selected) {
-                            if (selected == true) {
-                              widget.onStudentTapped(student);
-                            }
-                          },
                         );
                       }).toList(),
                     ),
@@ -342,6 +392,60 @@ class _ClassDetailsDialogState extends State<ClassDetailsDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  void generateAndDownloadPDF() async {
+    // Filter students based on payment status
+    List<Map<String, dynamic>> filteredByStatus;
+    final String paymentstatus = selectedStatus;
+    switch (paymentstatus) {
+      case 'Paid':
+        filteredByStatus = filteredStudents.where((student) {
+          double amountPaid =
+              double.tryParse(student['AmountPaid']?.toString() ?? '0') ?? 0.0;
+          return amountPaid >= totalFees;
+        }).toList();
+        break;
+
+      case 'Partially Paid':
+        filteredByStatus = filteredStudents.where((student) {
+          double amountPaid =
+              double.tryParse(student['AmountPaid']?.toString() ?? '0') ?? 0.0;
+          return amountPaid > 0 && amountPaid < totalFees;
+        }).toList();
+        break;
+
+      case 'Unpaid':
+        filteredByStatus = filteredStudents.where((student) {
+          double amountPaid =
+              double.tryParse(student['AmountPaid']?.toString() ?? '0') ?? 0.0;
+          return amountPaid == 0;
+        }).toList();
+        break;
+
+      default:
+        filteredByStatus = filteredStudents;
+    }
+
+    // Pass the filtered students to the PDF generation
+    await PdfGenerator.generateAndDownloadPDF(
+      className: widget.className,
+      filteredStudents: filteredByStatus,
+      totalFees: totalFees,
+      totalCollected: totalCollected,
+      remainingAmount: remainingAmount,
+      scholarshipAmount: scholarshipAmount,
+      feePeriod: feePeriod,
+      paymentstatus: paymentstatus,
+      context: context,
+    );
+  }
+
+  void _navigateToStudentProfile(Map<String, dynamic> student) {
+    showDialog(
+      context: context,
+      builder: (context) => StudentProfileScreen(student: student),
     );
   }
 
